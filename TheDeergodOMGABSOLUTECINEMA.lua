@@ -9,7 +9,7 @@ local LatestRoom = ReplicatedStorage.GameData.LatestRoom
 
 ---====== Config ======---
 local validRanges = {
-    {27, 33},
+    {31, 36},
     {61, 75},
     {85, 88}
 }

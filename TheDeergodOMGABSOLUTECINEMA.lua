@@ -1,93 +1,168 @@
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/DenDenZZZ/Kavo-UI-Library/main/Kavo.lua"))()
- 
-local Window = Library.CreateLib("Doors modes and mods", "DarkTheme")
- 
-local Tab = Window:NewTab("mods")
- 
-local Section = Tab:NewSection("have fun")
- 
-Section:NewButton("hardcore mode by DripCapybara", "fix version", function()
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/DripCapybara/Doors-Mode-Remakes/refs/heads/main/HardcoreFixed.lua"))()
+---====== Services ======---
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+
+local Plr = Players.LocalPlayer
+local LatestRoom = ReplicatedStorage.GameData.LatestRoom
+
+---====== Config ======---
+local validRanges = {
+    {27, 33},
+    {61, 75},
+    {85, 88}
+}
+
+local hasSpawned = false
+local badgeGiven = false
+
+---====== Helper ======---
+local function isValidRoom(room)
+    for _, range in ipairs(validRanges) do
+        if room >= range[1] and room <= range[2] then
+            return true
+        end
+    end
+    return false
+end
+
+---====== Main Spawn Logic ======---
+LatestRoom.Changed:Connect(function()
+    if hasSpawned then return end
+
+    local currentRoom = LatestRoom.Value
+
+    -- ✅ Only allowed rooms
+    if not isValidRoom(currentRoom) then return end
+
+    -- ❌ Block during Seek
+    if Workspace:FindFirstChild("SeekMoving")
+    or Workspace:FindFirstChild("SeekMovingNew")
+    or Workspace:FindFirstChild("SeekMovingNewClone") then
+        warn("DeerGod prevented: Seek active")
+        return
+    end
+
+    hasSpawned = true
+
+    wait(0)
+
+    pcall(function()
+
+        ---====== Load spawner ======---
+        local spawner = loadstring(game:HttpGet("https://raw.githubusercontent.com/RegularVynixu/Utilities/main/Doors/Entity%20Spawner/V2/Source.lua"))()
+
+        local killConnection
+
+        ---====== Create entity ======---
+        local entity = spawner.Create({
+            Entity = {
+                Name = "DeerGod",
+                Asset = "rbxassetid://73026733624298",
+                HeightOffset = 0
+            },
+            Lights = {
+                Flicker = { Enabled = true, Duration = 100 },
+                Shatter = false,
+                Repair = false
+            },
+            Earthquake = { Enabled = false },
+            CameraShake = {
+                Enabled = true,
+                Range = 200,
+                Values = {1.5, 20, 0.1, 1}
+            },
+            Movement = {
+                Speed = 25,
+                Delay = 0,
+                Reversed = false
+            },
+            Rebounding = { Enabled = false },
+            Damage = {
+                Enabled = true,
+                Range = 40,
+                Amount = 125
+            },
+            Crucifixion = {
+                Enabled = false
+            },
+            Death = {
+                Type = "Guiding",
+                Hints = {
+                    "You died to DeerGod...",
+                    "Closets won't save you.",
+                    "Hide behind solid objects.",
+                    "Break line of sight!"
+                },
+                Cause = "DeerGod"
+            }
+        })
+
+        ---====== LOS Kill Logic ======---
+        entity:SetCallback("OnStartMoving", function()
+            killConnection = RunService.Heartbeat:Connect(function()
+                local char = Plr.Character
+                local entModel = entity.Model
+
+                if char and char:FindFirstChild("Humanoid") and char:FindFirstChild("HumanoidRootPart")
+                and entModel and entModel.PrimaryPart then
+
+                    local humanoid = char.Humanoid
+                    local playerPos = char.HumanoidRootPart.Position
+                    local entityPos = entModel.PrimaryPart.Position
+
+                    local distance = (playerPos - entityPos).Magnitude
+
+                    if distance <= 40 then
+                        local direction = (playerPos - entityPos)
+
+                        local rayParams = RaycastParams.new()
+                        rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+                        rayParams.FilterDescendantsInstances = {entModel, char}
+
+                        local result = workspace:Raycast(entityPos, direction, rayParams)
+
+                        -- ✅ Only kill if visible
+                        if not result or result.Instance:IsDescendantOf(char) then
+                            humanoid.Health = 0
+
+                            if ReplicatedStorage:FindFirstChild("GameStats") then
+                                ReplicatedStorage.GameStats["Player_"..Plr.Name].Total.DeathCause.Value = "DeerGod"
+                            end
+                        end
+                    end
+                end
+            end)
+        end)
+
+        ---====== Cleanup ======---
+        entity:SetCallback("OnDespawning", function()
+            if killConnection then
+                killConnection:Disconnect()
+            end
+        end)
+
+        ---====== ✅ FIXED BADGE LOGIC ======---
+        entity:SetCallback("OnSpawned", function()
+            print("DeerGod spawned")
+
+            if not badgeGiven then
+                badgeGiven = true
+
+                local achievementGiver = loadstring(game:HttpGet("https://raw.githubusercontent.com/Voor-Pr00/Achivements/refs/heads/main/Voorpr0"))()
+
+                achievementGiver({
+                    Title = "Last chance to look at me.",
+                    Desc = "Why are you running?",
+                    Reason = "Encounter Deergod.",
+                    Image = "rbxassetid://12331751893"
+                })
+            end
+        end)
+
+        ---====== Run ======---
+        entity:Run()
+
+    end)
 end)
- 
-Section:NewButton("Endless mode fixed", "by DripCapybara", function()
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/DripCapybara/Doors-Mode-Remakes/refs/heads/main/EndlessMode.lua"))()
-end)
- 
-Section:NewButton("plamen6789 hardcore", "fixed", function()
-    loadstring(game:HttpGet("https://pastebin.com/raw/F9h0qzWW"))()
-end)
- 
-Section:NewButton("Mayhem Mode", "by localplayerr", function()
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/localplayerr/Doors-stuff/refs/heads/main/Mayhem%20mode%20recreate/Code"))()
-end)
- 
-Section:NewButton("hardcore remastered", "ButtonInfo", function()
-   loadstring(game:HttpGet("https://raw.githubusercontent.com/daiayday/HardcoreRemastered/refs/heads/main/obf_L6zO2N0sG5ehDHd56JBc5z70TZ2piVOvIqsgE88741HXGrwv7E4qd6c8axu8z4oh.lua.txt"))()
-end)
- 
-Section:NewButton("hardcore old", "by localplayerr", function()
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/localplayerr/Doors-stuff/refs/heads/main/Hardcore%20v4%20recreate/main%20code"))()
-end)
- 
-Section:NewButton("Darkness v2", "ButtonInfo", function()
-    loadstring("\108\111\97\100\115\116\114\105\110\103\40\103\97\109\101\58\72\116\116\112\71\101\116\40\34\104\116\116\112\115\58\47\47\114\97\119\46\103\105\116\104\117\98\117\115\101\114\99\111\110\116\101\110\116\46\99\111\109\47\83\99\114\105\112\116\53\48\51\57\51\57\50\47\68\97\114\107\110\101\115\115\77\111\100\101\47\109\97\105\110\47\83\99\114\105\112\116\47\76\111\97\100\101\114\46\108\117\97\34\41\41\40\41")()
-end)
- 
-Section:NewButton("Impossible mode", "ButtonInfo", function()
-    loadstring(game:HttpGet('https://raw.githubusercontent.com/Ukazix/impossible-mode/main/Protected_79.lua.txt'))()
-end)
- 
-Section:NewButton("hardcore remake", "by Jay", function()
-    loadstring(game:HttpGet("https://glot.io/snippets/gp5pu59o7f/raw"))()
-end)
- 
-Section:NewButton("kodbolx nightmare mode", "ButtonInfo", function()
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/kodbolx/kodbolhub/refs/heads/main/Nightmare%20Mode/Nightmare%20Mode.lua"))()
-end)
- 
-Section:NewButton("gace mode", "ButtonInfo", function()
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/IdkMyNameLoll/PublicScripts/refs/heads/main/GraceEntitiesScript"))()
-end)
- 
-local Tab = Window:NewTab("Extra")
- 
-local Section = Tab:NewSection("very cool things")
- 
-Section:NewButton("Guiding Candle ", "ButtonInfo", function()
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/ChronoAcceleration/Comet-Development/refs/heads/main/Doors/Assets/Storage/Candle.lua"))()
-end)
- 
-Section:NewButton("smiler spawner", "ButtonInfo", function()
-    loadstring(game:HttpGet('https://pastefy.app/YMa2CPBC/raw'))()
- end)
- 
- Section:NewButton("golden Flashlight gummy", "ButtonInfo", function()
-   loadstring(game:HttpGet(("https://raw.githubusercontent.com/aadyian9000/the-thing/main/GoldenGummyFlashlight.lua"),true))()
-end)
- 
-Section:NewButton("kodbolhub", "ButtonInfo", function()
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/kodbolx/kodbolhub/refs/heads/main/Kodbol%20Hub/Main.lua"))()
-end)
- 
-Section:NewButton("Script mode (UPDATE)", "ButtonInfo", function()
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/Munciseekawa/Sc/refs/heads/main/ScrtptsMode"))()
-end)
- 
-Section:NewButton("crucifix", "by PenguinManiack", function()
-    loadstring(game:HttpGet('https://raw.githubusercontent.com/PenguinManiack/Crucifix/main/Crucifix.lua'))()
-end)
- 
-Section:NewButton("hardcore a-60 spawner", "ButtonInfo", function()
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/Idk-lol2/a-60aa/refs/heads/main/---%3D%3D%3D%3D%3D%3D%20a-60%20agresiv%20spawner%20%3D%3D%3D%3D%3D%3D---.txt"))()
-end)
- 
-Section:NewButton("Entity spawner", "ButtonInfo", function()
-loadstring(game:HttpGet('https://raw.githubusercontent.com/plamen6789/UtilitiesHub/main/UtilitiesGUI'))()
-end)
- 
-local Tab = Window:NewTab("Credits")
- 
-local Section = Tab:NewSection("Normal")
-local Section = Tab:NewSection("hub by greed (me")
-local Section = Tab:NewSection("Credits to everybody")
